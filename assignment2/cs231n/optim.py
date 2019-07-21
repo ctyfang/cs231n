@@ -59,7 +59,8 @@ def sgd_momentum(w, dw, config=None):
     config.setdefault('learning_rate', 1e-2)
     config.setdefault('momentum', 0.9)
     v = config.get('velocity', np.zeros_like(w))
-
+    
+    
     next_w = None
     ###########################################################################
     # TODO: Implement the momentum update formula. Store the updated value in #
@@ -67,7 +68,11 @@ def sgd_momentum(w, dw, config=None):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    alpha = config.get('learning_rate')
+    mu = config.get('momentum', 0.5)
+    v = mu*v - alpha*dw
+    
+    next_w = w + v
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
@@ -104,9 +109,16 @@ def rmsprop(w, dw, config=None):
     # config['cache'].                                                        #
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
-    pass
-
+    
+    decay_rate = config.get('decay_rate')
+    cache = decay_rate*config.get('cache') + (1-decay_rate)*(dw**2)
+    
+    alpha = config.get('learning_rate')
+    epsilon = config.get('epsilon')
+                       
+    next_w = w - alpha*(dw) / (np.sqrt(cache) + epsilon) 
+    
+    config['cache'] = cache
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
     #                             END OF YOUR CODE                            #
@@ -148,9 +160,22 @@ def adam(w, dw, config=None):
     # using it in any calculations.                                           #
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
-    pass
-
+    
+    beta1, beta2 = config['beta1'], config['beta2']
+    m, v, t = config['m'], config['v'], config['t']
+    epsilon, alpha = config['epsilon'], config['learning_rate']
+    
+    t = t + 1
+    m = (beta1*m) + (1-beta1)*(dw)
+    mt = m / (1-beta1**t)
+    
+    v = (beta2*v) + (1-beta2)*(dw*dw)
+    vt = v / (1-beta2**t)
+    
+    next_w = w - (alpha*mt)/(np.sqrt(vt) + epsilon)
+    
+    config['m'], config['v'], config['t'] = m, v, t
+    
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
     #                             END OF YOUR CODE                            #
