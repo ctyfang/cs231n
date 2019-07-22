@@ -136,7 +136,7 @@ class TwoLayerNet(object):
         return loss, grads
 
 
-def affine_norm_relu_forward(x, w, b, gamma, beta, n_params):
+def affine_norm_relu_forward(x, w, b, gamma, beta, n_params, norm_type='batch_norm'):
     """
     Convenience layer that perorms an affine transform followed by a batchnorm, followed by a ReLU
 
@@ -150,10 +150,11 @@ def affine_norm_relu_forward(x, w, b, gamma, beta, n_params):
     """
     a, fc_cache = affine_forward(x, w, b)
     
-    if('running_mean' in n_params):
-        a_norm, norm_cache, bn_params = batchnorm_forward(a, gamma, beta, bn_params)
+    if(norm_type == 'batchnorm'):
+        #print('batchnorm running')
+        a_norm, norm_cache, bn_params = batchnorm_forward(a, gamma, beta, n_params)
     else:
-        a_norm, norm_cache = layernorm_forward(a, gamma, beta, n_params)
+        a_norm, norm_cache = layernorm_forward(a, gamma.T, beta.T, n_params)
     
     out, relu_cache = relu_forward(a_norm)
     cache = (fc_cache, relu_cache, norm_cache)
@@ -347,7 +348,8 @@ class FullyConnectedNet(object):
                 beta = self.params['beta%i' % layer_num]
                 
                 curr_X,curr_cache,curr_bn_params = affine_norm_relu_forward(curr_X, w, b, 
-                                                                            gamma, beta, self.bn_params[layer_num-1])
+                                                                            gamma, beta, self.bn_params[layer_num-1],
+                                                                            norm_type='batchnorm')
                 self.bn_params[layer_num-1] = curr_bn_params
                 
             elif(self.normalization == 'layernorm'):
@@ -355,11 +357,25 @@ class FullyConnectedNet(object):
                 beta = self.params['beta%i' % layer_num]
                 
                 curr_X,curr_cache,curr_bn_params = affine_norm_relu_forward(curr_X, w, b, 
-                                                                            gamma, beta, self.bn_params[layer_num-1])
+                                                                            gamma, beta, self.bn_params[layer_num-1],
+                                                                            norm_type='layernorm')
                 
             else:
                 curr_X, curr_cache = affine_relu_forward(curr_X, w, b)
+                
             
+            if(self.use_dropout == True):
+                curr_X, dropout_cache = dropout_forward(curr_X, self.dropout_param)
+                
+                if(self.normalization != None):
+                    # un-pack and re-pack cache to include dropout mask
+                    fc_cache, relu_cache, norm_cache = curr_cache
+
+                    curr_cache = (fc_cache, relu_cache, norm_cache, dropout_cache)
+                else:
+                    fc_cache, relu_cache = curr_cache
+                    curr_cache = (fc_cache, relu_cache, dropout_cache)
+                
             caches[layer_num] = curr_cache
         
         w = self.params['W' + str(self.num_layers)]
@@ -405,9 +421,23 @@ class FullyConnectedNet(object):
         
         # AFFINE - RELU LAYERS - Backpropagate gradient, compute reg loss
         for layer_num in reversed(range(1, self.num_layers)):
-            #print('W' + str(layer_num))
+            
+            # Regularization Loss
             loss += 0.5*self.reg*np.sum(self.params['W' + str(layer_num)]*self.params['W' + str(layer_num)])
             
+            # Drop-out Check
+            if(self.use_dropout == True):
+                if(self.normalization != None):
+                    fc_cache, relu_cache, norm_cache, dropout_cache = caches[layer_num]
+                    caches[layer_num] = (fc_cache, relu_cache, norm_cache)
+                
+                else:
+                    fc_cache, relu_cache, dropout_cache = caches[layer_num]
+                    caches[layer_num] = (fc_cache, relu_cache)
+                    
+                curr_dout = dropout_backward(curr_dout, dropout_cache)
+                
+                
             if(self.normalization == 'layernorm'):
                 dx, curr_dW, curr_db, dgamma, dbeta  = affine_norm_relu_backward(curr_dout, caches[layer_num],
                                                                                  norm_type='layernorm')

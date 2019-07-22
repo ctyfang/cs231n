@@ -284,13 +284,16 @@ def batchnorm_backward(dout, cache):
     mean = cache['mean']
     xmu = cache['xmu']
     
+    #print('dout shape is %s' % (dout.shape,))
+    #print('x_hat shape is %s' % (x_hat.shape,))
+    #print('gamma shape is %s' % (gamma.shape,))
     dbeta = np.sum(dout, axis=0)
     dgamma = np.sum(dout * x_hat, axis=0)
     
     dx_hat = dout * gamma
     dxmu_1 = dx_hat / std
     
-    distd = np.sum(dx_hat * xmu, axis=0)
+    distd = np.sum(dx_hat* xmu, axis=0)
     dstd = -1.0/np.square(std) * distd
     dvar = 0.5*dstd/np.sqrt(var)
     dxmu_sq = (1.0/N)*np.ones((N,D)) * dvar
@@ -418,7 +421,7 @@ def layernorm_forward(x, gamma, beta, ln_param):
     #print(x_hat.shape)
     #print((gamma.T*x_hat).shape)
     #print(beta.shape)
-    out = gamma.T*x_hat + beta.T
+    out = gamma*x_hat + beta
 
     cache['gamma'] = gamma
     cache['x_hat'] = x_hat
@@ -475,8 +478,8 @@ def layernorm_backward(dout, cache):
     dgamma = np.sum(dout.T * x_hat.T, axis=0)
     ones = np.ones((N,D))
     
-    dx_hat = dout * gamma.T
-    dxmu_1 = (dout * gamma.T) / std
+    dx_hat = dout * gamma
+    dxmu_1 = (dout * gamma) / std
     
     distd = np.sum(dx_hat * xmu, axis=0)
     dvar = -0.5*distd/(std**3)
@@ -515,6 +518,7 @@ def dropout_forward(x, dropout_param):
     NOTE: Please implement **inverted** dropout, not the vanilla version of dropout.
     See http://cs231n.github.io/neural-networks-2/#reg for more details.
 
+
     NOTE 2: Keep in mind that p is the probability of **keep** a neuron
     output; this might be contrary to some sources, where it is referred to
     as the probability of dropping a neuron output.
@@ -532,8 +536,8 @@ def dropout_forward(x, dropout_param):
         # Store the dropout mask in the mask variable.                        #
         #######################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
-        pass
+        mask = (np.random.rand(x.shape[0], x.shape[1]) < p)/p
+        out = x*mask
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         #######################################################################
@@ -545,7 +549,7 @@ def dropout_forward(x, dropout_param):
         #######################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        out = x
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         #######################################################################
@@ -576,7 +580,7 @@ def dropout_backward(dout, cache):
         #######################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        dx = dout*mask
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         #######################################################################
